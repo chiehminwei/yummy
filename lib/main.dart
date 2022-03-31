@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:survey_kit/survey_kit.dart';
+import 'package:yummy/services/services.dart';
 
 import 'firebase_options.dart';
 
@@ -39,7 +40,31 @@ class _MyAppState extends State<MyApp> {
                   final task = snapshot.data!;
                   return SurveyKit(
                     onResult: (SurveyResult result) {
-                      print(result.finishReason);
+                      int numHomeCookedMeals =
+                          result.results[1].results[0].result;
+
+                      List<DateTime> mealTimes = [];
+                      for (int i = 0; i < numHomeCookedMeals; i++) {
+                        TimeOfDay t = result.results[2 + i].results[0].result;
+
+                        final now = DateTime.now();
+                        DateTime mealTime = DateTime(
+                            now.year, now.month, now.day, t.hour, t.minute);
+
+                        mealTimes.add(mealTime);
+                      }
+
+                      JournalResult journalResult = JournalResult(
+                        numHomeCookedMeals: numHomeCookedMeals,
+                        mealTimes: mealTimes,
+                        dataEntryTime: DateTime.now(),
+                      );
+
+                      print(journalResult.numHomeCookedMeals);
+                      print(journalResult.mealTimes);
+                      print(journalResult.dataEntryTime);
+
+                      FirestoreService().addJournalEntry(journalResult);
                     },
                     task: task,
                     showProgress: true,
@@ -169,74 +194,20 @@ class _MyAppState extends State<MyApp> {
       id: TaskIdentifier(),
       steps: [
         InstructionStep(
-          title: 'Welcome to the\nQuickBird Studios\nHealth Survey',
-          text: 'Get ready for a bunch of super random questions!',
+          title: 'Welcome to the\nYummy\nDaily Health Journal',
+          text: 'Record your progress in healthy eating today!',
           buttonText: 'Let\'s go!',
         ),
         QuestionStep(
-          title: 'How old are you?',
+          title: 'How many meals did you cook today?',
           answerFormat: IntegerAnswerFormat(
-            defaultValue: 25,
-            hint: 'Please enter your age',
+            defaultValue: 1,
+            hint: 'Number of meals',
           ),
           isOptional: true,
         ),
         QuestionStep(
-          title: 'Medication?',
-          text: 'Are you using any medication',
-          answerFormat: BooleanAnswerFormat(
-            positiveAnswer: 'Yes',
-            negativeAnswer: 'No',
-            result: BooleanResult.POSITIVE,
-          ),
-        ),
-        QuestionStep(
-          title: 'Tell us about you',
-          text:
-              'Tell us about yourself and why you want to improve your health.',
-          answerFormat: TextAnswerFormat(
-            maxLines: 5,
-            validationRegEx: "^(?!\s*\$).+",
-          ),
-        ),
-        QuestionStep(
-          title: 'Select your body type',
-          answerFormat: ScaleAnswerFormat(
-            step: 1,
-            minimumValue: 1,
-            maximumValue: 5,
-            defaultValue: 3,
-            minimumValueDescription: '1',
-            maximumValueDescription: '5',
-          ),
-        ),
-        QuestionStep(
-          title: 'Known allergies',
-          text: 'Do you have any allergies that we should be aware of?',
-          isOptional: false,
-          answerFormat: MultipleChoiceAnswerFormat(
-            textChoices: [
-              TextChoice(text: 'Penicillin', value: 'Penicillin'),
-              TextChoice(text: 'Latex', value: 'Latex'),
-              TextChoice(text: 'Pet', value: 'Pet'),
-              TextChoice(text: 'Pollen', value: 'Pollen'),
-            ],
-          ),
-        ),
-        QuestionStep(
-          title: 'Done?',
-          text: 'We are done, do you mind to tell us more about yourself?',
-          isOptional: true,
-          answerFormat: SingleChoiceAnswerFormat(
-            textChoices: [
-              TextChoice(text: 'Yes', value: 'Yes'),
-              TextChoice(text: 'No', value: 'No'),
-            ],
-            defaultSelection: TextChoice(text: 'No', value: 'No'),
-          ),
-        ),
-        QuestionStep(
-          title: 'When did you wake up?',
+          title: 'When did you eat?',
           answerFormat: TimeAnswerFormat(
             defaultValue: TimeOfDay(
               hour: 12,
@@ -244,37 +215,29 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
         ),
-        QuestionStep(
-          title: 'When was your last holiday?',
-          answerFormat: DateAnswerFormat(
-            minDate: DateTime.utc(1970),
-            defaultDate: DateTime.now(),
-            maxDate: DateTime.now(),
-          ),
-        ),
         CompletionStep(
           stepIdentifier: StepIdentifier(id: '321'),
           text: 'Thanks for taking the survey, we will contact you soon!',
           title: 'Done!',
-          buttonText: 'Submit survey',
+          buttonText: 'Submit results',
         ),
       ],
     );
-    task.addNavigationRule(
-      forTriggerStepIdentifier: task.steps[6].stepIdentifier,
-      navigationRule: ConditionalNavigationRule(
-        resultToStepIdentifierMapper: (input) {
-          switch (input) {
-            case "Yes":
-              return task.steps[0].stepIdentifier;
-            case "No":
-              return task.steps[7].stepIdentifier;
-            default:
-              return null;
-          }
-        },
-      ),
-    );
+    // task.addNavigationRule(
+    //   forTriggerStepIdentifier: task.steps[6].stepIdentifier,
+    //   navigationRule: ConditionalNavigationRule(
+    //     resultToStepIdentifierMapper: (input) {
+    //       switch (input) {
+    //         case "Yes":
+    //           return task.steps[0].stepIdentifier;
+    //         case "No":
+    //           return task.steps[7].stepIdentifier;
+    //         default:
+    //           return null;
+    //       }
+    //     },
+    //   ),
+    // );
     return Future.value(task);
   }
 
